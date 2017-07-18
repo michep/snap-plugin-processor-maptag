@@ -7,12 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"fmt"
 	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 )
 
 type pluginConfig struct {
 	cmd      string
-	reftag   string
+	reftype  string
+	refname  string
 	refgroup string
 	regex    string
 	args     []string
@@ -56,21 +58,54 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 	if err != nil {
 		return mts, err
 	}
+
 	// cycle all metrics
 	for _, mt := range mts {
-		// if metric has a tag "reftag"
-		if m_tagval, ok := mt.Tags[p.config.reftag]; ok {
-			// lookup value of a tag "reftag" in mapping "refgroup"
-			idx := getValueIndex(p.mapping[p.config.refgroup], m_tagval)
-			// if found
-			if idx >= 0 {
-				// cycle all groups in mapping
-				for grname, grvalues := range p.mapping {
-					// if group is NOT a "refgroup"
-					if grname != p.config.refgroup {
-						// add new tag whith group name and value to metric
-						mt.Tags[grname] = grvalues[idx]
-					}
+		idx := -1
+		switch p.config.reftype {
+
+		// looking for tag value
+		case "tag":
+			// if metric has a tag "refname"
+			if m_tagval, ok := mt.Tags[p.config.refname]; ok {
+				// lookup of tag value in mapping "refgroup"
+				idx = getValueIndex(p.mapping[p.config.refgroup], m_tagval)
+			}
+
+		// looking for namespace element name
+		case "ns_name":
+			// cycle metric namespace elements
+			for _, nse := range mt.Namespace {
+				// if namespace element name is "refname"
+				if nse.Name == p.config.refname {
+					// lookup of namespace element value in mapping "refgroup"
+					idx = getValueIndex(p.mapping[p.config.refgroup], nse.Value)
+				}
+			}
+
+		// looking for namespace element value
+		case "ns_value":
+			// Lookup of "refname" in metric namespace elements values
+			nsi := getValueIndex(mt.Namespace.Strings(), p.config.refname)
+			// if such namespace element is found
+			if nsi >= 0 {
+				// lookup of namespace element value in mapping "refgroup"
+				idx = getValueIndex(p.mapping[p.config.refgroup], mt.Namespace[nsi].Value)
+			}
+
+		// Incorrect reftype value
+		default:
+			return mts, fmt.Errorf("Incorrect reftype value: %v", p.config.reftype)
+		}
+
+		// if found
+		if idx >= 0 {
+			// cycle all groups in mapping
+			for grname, grvalues := range p.mapping {
+				// if group is NOT a "refgroup"
+				if grname != p.config.refgroup {
+					// add new tag whith group name and value to metric
+					mt.Tags[grname] = grvalues[idx]
 				}
 			}
 		}
@@ -82,7 +117,8 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 func (p *Plugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
 	policy.AddNewStringRule([]string{""}, "cmd", true)
-	policy.AddNewStringRule([]string{""}, "reftag", true)
+	policy.AddNewStringRule([]string{""}, "reftype", true)
+	policy.AddNewStringRule([]string{""}, "refname", true)
 	policy.AddNewStringRule([]string{""}, "refgroup", true)
 	policy.AddNewStringRule([]string{""}, "regex", true)
 	return *policy, nil
@@ -91,10 +127,30 @@ func (p *Plugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 func getConfig(cfg plugin.Config) (*pluginConfig, error) {
 	var err error
 	mpc := pluginConfig{}
-	mpc.cmd, _ = cfg.GetString("cmd")
-	mpc.reftag, _ = cfg.GetString("reftag")
-	mpc.refgroup, _ = cfg.GetString("refgroup")
-	mpc.regex, _ = cfg.GetString("regex")
+	mpc.cmd, err = cfg.GetString("cmd")
+	if err != nil {
+		return nil, err
+	}
+
+	mpc.reftype, err = cfg.GetString("reftype")
+	if err != nil {
+		return nil, err
+	}
+
+	mpc.refname, err = cfg.GetString("refname")
+	if err != nil {
+		return nil, err
+	}
+
+	mpc.refgroup, err = cfg.GetString("refgroup")
+	if err != nil {
+		return nil, err
+	}
+
+	mpc.regex, err = cfg.GetString("regex")
+	if err != nil {
+		return nil, err
+	}
 
 	mpc.args, err = getConfigArgs(cfg)
 	if err != nil {

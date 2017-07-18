@@ -1,0 +1,24 @@
+---
+version: 1
+schedule:
+  type: "simple"
+  interval: "10s"
+workflow:
+  collect:
+    metrics:
+      /intel/iostat/device/*: {}
+    process:
+    - plugin_name: maptag
+      config:
+        cmd: /bin/sh
+        arg0: -c
+        arg1: ls -l /dev/disk/by-uuid/ 
+        regex: '(?P<uuid>\w{8}-\w+-\w+-\w+-\w+) -> (\.\.\/)+(?P<re_dev>\S+)'
+        refgroup: re_dev
+        reftype: tag
+        refname: dev
+      publish:
+      - plugin_name: "file"
+        config:
+          file: "/tmp/maptag-processog.log"
+

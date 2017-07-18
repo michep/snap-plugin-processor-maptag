@@ -52,7 +52,8 @@ The plugin can be configured by following parameters:
 - `arg[0..9]` - arguments to command.
 - `regex` - regular expression to process command output. Use golang [regexp syntax](https://github.com/google/re2/wiki/Syntax). This expression should contain named captioning groups for lookup and tags adding.
 - `refgroup` - named capturing group in `regex` that will be used to lookup values.
-- `reftag` - metric tag name, which value will be searched in `refgroup` results.
+- `reftype` - which data use to lookup - tag values, metric static namespace element value or dynamic namespace element name; proper values are `tag`, `ns_value` and `ns_name`.
+- `refname` - metric `reftype`, which value will be searched in `refgroup` results.
 
 Notice: Special characters in regular expressions needs to be escaped.
 
@@ -107,7 +108,8 @@ workflow:
         arg1: ls -l /dev/disk/by-uuid/ 
         regex: '(?P<uuid>\w{8}-\w+-\w+-\w+-\w+) -> (\.\.\/)+(?P<re_dev>\S+)'
         refgroup: re_dev
-        reftag: dev
+        reftype: tag
+        refname: dev
     publish:
           publish:
             - plugin_name: "file"
