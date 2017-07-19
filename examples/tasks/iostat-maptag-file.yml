@@ -17,6 +17,7 @@ workflow:
         refgroup: re_dev
         reftype: tag
         refname: dev
+        ttl: 20
       publish:
       - plugin_name: "file"
         config:

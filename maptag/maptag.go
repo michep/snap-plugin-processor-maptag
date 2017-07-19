@@ -1,13 +1,13 @@
 package maptag
 
 import (
+	"fmt"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"fmt"
 	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 )
 
@@ -32,6 +32,7 @@ func NewPlugin() *Plugin {
 	mp := Plugin{
 		mapping:     make(map[string][]string),
 		initialized: false,
+		cachetime:   time.Unix(0, 0),
 	}
 	return &mp
 }
@@ -39,24 +40,30 @@ func NewPlugin() *Plugin {
 func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metric, error) {
 	var err error
 
-	p.config, err = getConfig(cfg)
-	if err != nil {
-		return mts, err
+	if !p.initialized {
+		p.config, err = getConfig(cfg)
+		if err != nil {
+			return mts, err
+		}
+		p.initialized = true
 	}
 
-	output, err := getCmdStdout(p.config.cmd, p.config.args)
-	if err != nil {
-		return mts, err
-	}
+	if time.Since(p.cachetime) > p.config.ttl {
+		output, err := getCmdStdout(p.config.cmd, p.config.args)
+		if err != nil {
+			return mts, err
+		}
 
-	re, err := regexp.Compile(p.config.regex)
-	if err != nil {
-		return mts, err
-	}
+		re, err := regexp.Compile(p.config.regex)
+		if err != nil {
+			return mts, err
+		}
 
-	p.mapping, err = getMappings(output, re)
-	if err != nil {
-		return mts, err
+		p.mapping, err = getMappings(output, re)
+		if err != nil {
+			return mts, err
+		}
+		p.cachetime = time.Now()
 	}
 
 	// cycle all metrics
@@ -116,48 +123,65 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 
 func (p *Plugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
-	policy.AddNewStringRule([]string{""}, "cmd", true)
-	policy.AddNewStringRule([]string{""}, "reftype", true)
-	policy.AddNewStringRule([]string{""}, "refname", true)
-	policy.AddNewStringRule([]string{""}, "refgroup", true)
-	policy.AddNewStringRule([]string{""}, "regex", true)
+	policy.AddNewStringRule([]string{"*"}, "cmd", true)
+	policy.AddNewStringRule([]string{"*"}, "reftype", true)
+	policy.AddNewStringRule([]string{"*"}, "refname", true)
+	policy.AddNewStringRule([]string{"*"}, "refgroup", true)
+	policy.AddNewStringRule([]string{"*"}, "regex", true)
+	policy.AddNewIntRule([]string{"*"}, "ttl", false, plugin.SetDefaultInt(180))
 	return *policy, nil
 }
 
 func getConfig(cfg plugin.Config) (*pluginConfig, error) {
 	var err error
+	errs := []error{}
 	mpc := pluginConfig{}
 	mpc.cmd, err = cfg.GetString("cmd")
 	if err != nil {
-		return nil, err
+		errs = append(errs, fmt.Errorf(err.Error()+" cmd"))
 	}
 
 	mpc.reftype, err = cfg.GetString("reftype")
 	if err != nil {
-		return nil, err
+		errs = append(errs, fmt.Errorf(err.Error()+" reftype"))
 	}
 
 	mpc.refname, err = cfg.GetString("refname")
 	if err != nil {
-		return nil, err
+		errs = append(errs, fmt.Errorf(err.Error()+" refname"))
 	}
 
 	mpc.refgroup, err = cfg.GetString("refgroup")
 	if err != nil {
-		return nil, err
+		errs = append(errs, fmt.Errorf(err.Error()+" refgroup"))
 	}
 
 	mpc.regex, err = cfg.GetString("regex")
 	if err != nil {
-		return nil, err
+		errs = append(errs, fmt.Errorf(err.Error()+" regex"))
 	}
+
+	ittl, err := cfg.GetInt("ttl")
+	if err != nil {
+		errs = append(errs, fmt.Errorf(err.Error()+" ttl"))
+	}
+	mpc.ttl = time.Duration(ittl) * time.Minute
 
 	mpc.args, err = getConfigArgs(cfg)
 	if err != nil {
-		return nil, err
+		errs = append(errs, err)
 	}
 
-	return &mpc, nil
+	errorstr := ""
+	var errout error
+	if len(errs) > 0 {
+		for _, err := range errs {
+			errorstr += err.Error() + "\n"
+		}
+		errout = fmt.Errorf(errorstr)
+	}
+
+	return &mpc, errout
 }
 
 func getConfigArgs(cfg plugin.Config) ([]string, error) {

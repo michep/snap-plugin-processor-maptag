@@ -48,14 +48,16 @@ This builds the plugin.
 The intention of this plugin is to add tags to metrics based on regexp lookup over particular command or script execution output.
 
 The plugin can be configured by following parameters:
-- `cmd` - command to execute.
-- `arg[0..9]` - arguments to command.
-- `regex` - regular expression to process command output. Use golang [regexp syntax](https://github.com/google/re2/wiki/Syntax). This expression should contain named captioning groups for lookup and tags adding.
-- `refgroup` - named capturing group in `regex` that will be used to lookup values.
-- `reftype` - which data use to lookup - tag values, metric static namespace element value or dynamic namespace element name; proper values are `tag`, `ns_value` and `ns_name`.
-- `refname` - metric `reftype`, which value will be searched in `refgroup` results.
+- `cmd` - command to execute. Required parameter.
+- `arg[0..9]` - arguments to command. Optional parameters.
+- `regex` - regular expression to process command output. Use golang [regexp syntax](https://github.com/google/re2/wiki/Syntax). This expression should contain named capturing groups for lookup and tags adding. Required parameter.
+- `refgroup` - named capturing group in `regex` that will be used to lookup values. Required parameter.
+- `reftype` - which data use to lookup - tag values, metric static namespace element value or dynamic namespace element name; proper values are `tag`, `ns_value` and `ns_name`. Required parameter.
+- `refname` - metric `reftype`, which value will be searched in `refgroup` results. Required parameter.
+- `ttl` - plugin cache time-to-live, in minutes. After cache was created it will not be updated till this time period expire. Optional parameter, default value - 180m (3h).
 
 Notice: Special characters in regular expressions needs to be escaped.
+
 
 ### Examples
 In this example we run iostat collector, maptag processor and file publisher to write data into file.
@@ -110,6 +112,7 @@ workflow:
         refgroup: re_dev
         reftype: tag
         refname: dev
+        ttl: 20
     publish:
           publish:
             - plugin_name: "file"
