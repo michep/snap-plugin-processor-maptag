@@ -113,11 +113,10 @@ workflow:
         reftype: tag
         refname: dev
         ttl: 20
-    publish:
-          publish:
-            - plugin_name: "file"
-              config:
-                file: "/tmp/maptag-processog.log"
+      publish:
+      - plugin_name: "file"
+        config:
+          file: "/tmp/maptag-processog.log"
 ```
 
 Start task:
