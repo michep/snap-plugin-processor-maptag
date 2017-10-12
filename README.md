@@ -12,7 +12,7 @@ It's used in the [Snap framework](http://github.com:intelsdi-x/snap).
   * [Roadmap](#roadmap)
 3. [Community Support](#community-support)
 4. [Contributing](#contributing)
-5. [License](#license-and-authors)
+5. [License](#license)
 6. [Acknowledgements](#acknowledgements)
 
 ## Getting Started
@@ -64,7 +64,7 @@ Notice: Special characters in regular expressions needs to be escaped.
 ### Examples
 In this example we run iostat collector, maptag processor and file publisher to write data into file.
 
-Documentation for Snap collector cpu plugin can be found [here](https://github.com/intelsdi-x/snap-plugin-collector-iostat).
+Documentation for Snap collector iostat plugin can be found [here](https://github.com/intelsdi-x/snap-plugin-collector-iostat).
 Documentation for Snap file publisher plugin can be found [here](https://github.com/intelsdi-x/snap-plugin-publisher-file).
 
 In one terminal window, open the snap daemon with log level 1 (`-l 1`) and disabled plugin signing check (`-t 0`):
@@ -116,11 +116,10 @@ workflow:
         reftype: tag
         refname: dev
         ttl: 20
-    publish:
-          publish:
-            - plugin_name: "file"
-              config:
-                file: "/tmp/maptag-processog.log"
+      publish:
+      - plugin_name: "file"
+        config:
+          file: "/tmp/maptag-processog.log"
 ```
 
 Start task:
@@ -142,7 +141,7 @@ There isn't a current roadmap for this plugin, but it is in active development. 
 This repository is one of **many** plugins in **Snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support)
 
 ## License
-[Snap](http://github.com:intelsdi-x/snap), along with this plugin, is an Open Source software released under the Apache 2.0 [License](LICENSE).
+[Snap](http://github.com/intelsdi-x/snap), along with this plugin, is an Open Source software released under the Apache 2.0 [License](LICENSE).
 
 ## Acknowledgements
 * Author: [Mike Chepaykin](https://github.com/michep/)
