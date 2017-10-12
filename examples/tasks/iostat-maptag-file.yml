@@ -10,6 +10,7 @@ workflow:
     process:
     - plugin_name: maptag
       config:
+        maptype: newtag
         cmd: /bin/sh
         arg0: -c
         arg1: ls -l /dev/disk/by-uuid/ 
@@ -22,4 +23,3 @@ workflow:
       - plugin_name: "file"
         config:
           file: "/tmp/maptag-processog.log"
-

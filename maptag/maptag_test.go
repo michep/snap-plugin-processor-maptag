@@ -29,7 +29,7 @@ func TestPlugin_GetConfigPolicy(t *testing.T) {
 }
 
 func TestPlugin_Process(t *testing.T) {
-	Convey("Processing metrics with reftype=tag", t, func() {
+	Convey("Processing metrics with maptype=newtag and reftype=tag", t, func() {
 		plg := NewPlugin()
 		mts, err := plg.Process(mockMetrics(), mockPluginConfig_tag())
 		So(err, ShouldBeNil)
@@ -39,7 +39,7 @@ func TestPlugin_Process(t *testing.T) {
 		So(mts[1].Tags, ShouldNotContainKey, "newtag")
 	})
 
-	Convey("Processing metrics with reftype=ns_value", t, func() {
+	Convey("Processing metrics with maptype=newtag and reftype=ns_value", t, func() {
 		plg := NewPlugin()
 		mts, err := plg.Process(mockMetrics(), mockPluginConfig_value())
 		So(err, ShouldBeNil)
@@ -50,7 +50,7 @@ func TestPlugin_Process(t *testing.T) {
 		So(mts[1].Tags["newtag"], ShouldEqual, "somevalue")
 	})
 
-	Convey("Processing metrics with reftype=ns_name", t, func() {
+	Convey("Processing metrics with maptype=newtag and reftype=ns_name", t, func() {
 		plg := NewPlugin()
 		mts, err := plg.Process(mockMetrics(), mockPluginConfig_name())
 		So(err, ShouldBeNil)
@@ -58,6 +58,17 @@ func TestPlugin_Process(t *testing.T) {
 		So(mts[0].Tags, ShouldNotContainKey, "newtag")
 		So(mts[1].Tags, ShouldContainKey, "newtag")
 		So(mts[1].Tags["newtag"], ShouldEqual, "somevalue")
+	})
+
+	Convey("Processing metrics with maptype=replacetag", t, func() {
+		plg := NewPlugin()
+		mts, err := plg.Process(mockMetrics(), mockPluginConfig_replacetag())
+		So(err, ShouldBeNil)
+		So(mts, ShouldHaveLength, 2)
+		So(mts[0].Tags, ShouldContainKey, "tagtwo")
+		So(mts[0].Tags["tagtwo"], ShouldEqual, "value_two")
+		So(mts[1].Tags, ShouldContainKey, "tagtwo")
+		So(mts[1].Tags["tagtwo"], ShouldEqual, "foo")
 	})
 }
 
@@ -100,7 +111,7 @@ func mockMetrics() []plugin.Metric {
 	mt.Data = 3.1415926
 	mt.Timestamp = time.Now()
 	mt.Namespace = plugin.NewNamespace("test", "static", "namespace", "pi")
-	mt.Tags = map[string]string{"tagone": "valueone", "tagtwo": "valuetwo"}
+	mt.Tags = map[string]string{"tagone": "valueone", "tagtwo": "value_two: here it is"}
 	metrics = append(metrics, mt)
 
 	// second
@@ -111,7 +122,7 @@ func mockMetrics() []plugin.Metric {
 	mt.Namespace = mt.Namespace.AddDynamicElement("dynamic", "dynamic namespace element")
 	mt.Namespace = mt.Namespace.AddStaticElements("namespace", "e")
 	mt.Namespace[1].Value = "valuedynamic"
-	mt.Tags = map[string]string{"tagone": "anothervalueone", "tagtwo": "valuetwo"}
+	mt.Tags = map[string]string{"tagone": "anothervalueone", "tagtwo": "foo bar "}
 	metrics = append(metrics, mt)
 
 	return metrics
@@ -119,6 +130,7 @@ func mockMetrics() []plugin.Metric {
 
 func mockPluginConfig_tag() plugin.Config {
 	cfg := plugin.Config{
+		"maptype":  "newtag",
 		"cmd":      "?",
 		"arg0":     "?",
 		"arg1":     "echo valueone somevalue",
@@ -134,6 +146,7 @@ func mockPluginConfig_tag() plugin.Config {
 
 func mockPluginConfig_longTTL() plugin.Config {
 	cfg := plugin.Config{
+		"maptype":  "newtag",
 		"cmd":      "?",
 		"arg0":     "?",
 		"arg1":     "echo valueone somevalue",
@@ -149,6 +162,7 @@ func mockPluginConfig_longTTL() plugin.Config {
 
 func mockPluginConfig_value() plugin.Config {
 	cfg := &plugin.Config{
+		"maptype":  "newtag",
 		"cmd":      "?",
 		"arg0":     "?",
 		"arg1":     "echo namespace somevalue",
@@ -164,6 +178,7 @@ func mockPluginConfig_value() plugin.Config {
 
 func mockPluginConfig_name() plugin.Config {
 	cfg := plugin.Config{
+		"maptype":  "newtag",
 		"cmd":      "?",
 		"arg0":     "?",
 		"arg1":     "echo valuedynamic somevalue",
@@ -174,6 +189,17 @@ func mockPluginConfig_name() plugin.Config {
 		"ttl":      int64(1),
 	}
 	addCmdToConfig(&cfg)
+	return cfg
+}
+
+func mockPluginConfig_replacetag() plugin.Config {
+	cfg := plugin.Config{
+		"maptype": "replacetag",
+		"regex":   "(\\w+).*",
+		"replace": "$1",
+		"refname": "tagtwo",
+		"ttl":     int64(0),
+	}
 	return cfg
 }
 
