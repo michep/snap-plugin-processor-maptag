@@ -70,6 +70,28 @@ func TestPlugin_Process(t *testing.T) {
 		So(mts[1].Tags, ShouldContainKey, "tagtwo")
 		So(mts[1].Tags["tagtwo"], ShouldEqual, "foo")
 	})
+
+	Convey("Processing metrics with maptype=replacetag, no regex matching and default value", t, func() {
+		plg := NewPlugin()
+		mts, err := plg.Process(mockMetrics(), mockPluginConfig_replacetag_default())
+		So(err, ShouldBeNil)
+		So(mts, ShouldHaveLength, 2)
+		So(mts[0].Tags, ShouldContainKey, "tagtwo")
+		So(mts[0].Tags["tagtwo"], ShouldEqual, "default value")
+		So(mts[1].Tags, ShouldContainKey, "tagtwo")
+		So(mts[1].Tags["tagtwo"], ShouldEqual, "default value")
+	})
+
+	Convey("Processing metrics with maptype=replacetag and no regex matching", t, func() {
+		plg := NewPlugin()
+		mts, err := plg.Process(mockMetrics(), mockPluginConfig_replacetag_default_1())
+		So(err, ShouldBeNil)
+		So(mts, ShouldHaveLength, 2)
+		So(mts[0].Tags, ShouldContainKey, "tagtwo")
+		So(mts[0].Tags["tagtwo"], ShouldEqual, "value_two: here it is")
+		So(mts[1].Tags, ShouldContainKey, "tagtwo")
+		So(mts[1].Tags["tagtwo"], ShouldEqual, "foo bar")
+	})
 }
 
 func TestPlugin_CreateCacheTTL(t *testing.T) {
@@ -122,7 +144,7 @@ func mockMetrics() []plugin.Metric {
 	mt.Namespace = mt.Namespace.AddDynamicElement("dynamic", "dynamic namespace element")
 	mt.Namespace = mt.Namespace.AddStaticElements("namespace", "e")
 	mt.Namespace[1].Value = "valuedynamic"
-	mt.Tags = map[string]string{"tagone": "anothervalueone", "tagtwo": "foo bar "}
+	mt.Tags = map[string]string{"tagone": "anothervalueone", "tagtwo": "foo bar"}
 	metrics = append(metrics, mt)
 
 	return metrics
@@ -196,6 +218,29 @@ func mockPluginConfig_replacetag() plugin.Config {
 	cfg := plugin.Config{
 		"maptype": "replacetag",
 		"regex":   "(\\w+).*",
+		"replace": "$1",
+		"refname": "tagtwo",
+		"ttl":     int64(0),
+	}
+	return cfg
+}
+
+func mockPluginConfig_replacetag_default() plugin.Config {
+	cfg := plugin.Config{
+		"maptype":     "replacetag",
+		"regex":       "(###\\w+###).*",
+		"replace":     "$1",
+		"default_val": "default value",
+		"refname":     "tagtwo",
+		"ttl":         int64(0),
+	}
+	return cfg
+}
+
+func mockPluginConfig_replacetag_default_1() plugin.Config {
+	cfg := plugin.Config{
+		"maptype": "replacetag",
+		"regex":   "(###\\w+###).*",
 		"replace": "$1",
 		"refname": "tagtwo",
 		"ttl":     int64(0),

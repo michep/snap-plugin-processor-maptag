@@ -12,15 +12,16 @@ import (
 )
 
 type pluginConfig struct {
-	maptype  string
-	cmd      string
-	reftype  string
-	refname  string
-	refgroup string
-	regex    string
-	replace  string
-	args     []string
-	ttl      time.Duration
+	maptype     string
+	cmd         string
+	reftype     string
+	refname     string
+	refgroup    string
+	regex       string
+	replace     string
+	default_val string
+	args        []string
+	ttl         time.Duration
 }
 
 type Plugin struct {
@@ -112,9 +113,12 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 			}
 		case "replacetag":
 			if m_tagval, ok := mt.Tags[p.config.refname]; ok {
-				// lookup of tag value in mapping "refgroup"
-				new_tagval := p.re.ReplaceAllString(m_tagval, p.config.replace)
-				mt.Tags[p.config.refname] = new_tagval
+				if i := p.re.FindStringIndex(m_tagval); i == nil && p.config.default_val != "" {
+					mt.Tags[p.config.refname] = p.config.default_val
+				} else {
+					new_tagval := p.re.ReplaceAllString(m_tagval, p.config.replace)
+					mt.Tags[p.config.refname] = new_tagval
+				}
 			}
 
 		default:
@@ -150,6 +154,7 @@ func (p *Plugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy.AddNewStringRule([]string{"*"}, "refgroup", false)
 	policy.AddNewStringRule([]string{"*"}, "regex", true)
 	policy.AddNewStringRule([]string{"*"}, "replace", false)
+	policy.AddNewStringRule([]string{"*"}, "default_val", false)
 	policy.AddNewIntRule([]string{"*"}, "ttl", false, plugin.SetDefaultInt(180))
 	return *policy, nil
 }
@@ -184,6 +189,11 @@ func getConfig(cfg plugin.Config) (*pluginConfig, error) {
 		mpc.replace, err = cfg.GetString("replace")
 		if err != nil {
 			errs = append(errs, fmt.Errorf(err.Error()+" replace"))
+		}
+
+		mpc.default_val, err = cfg.GetString("default_val")
+		if err != nil {
+			mpc.default_val = ""
 		}
 	}
 
