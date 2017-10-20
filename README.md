@@ -45,18 +45,19 @@ This builds the plugin.
 
 ## Documentation
 
-The intention of this plugin is to add tags to metrics based on regexp lookup over particular command or script execution output.
+The intention of this plugin is to add tags to metrics based on regexp lookup over particular command or script execution output OR to replace value of certain tag or namespace element.
 
 The plugin can be configured by following parameters:
-- `maptype` - type of tag processing, propper values are `newtag` and `replacetag`. 
-- `cmd` - command to execute. Required parameter for `newtag`.
-- `arg[0..9]` - arguments to command. Optional parameters.
+- `maptype` - type of tag processing, propper values are `newtag` and `replace_value`. 
 - `regex` - regular expression to process command output. Use golang [regexp syntax](https://github.com/google/re2/wiki/Syntax). This expression should contain named capturing groups for lookup and tags adding. Required parameter.
-- `refgroup` - named capturing group in `regex` that will be used to lookup values. Required parameter for `newtag`.
-- `reftype` - which data use to lookup - tag values, metric static namespace element value or dynamic namespace element name; proper values are `tag`, `ns_value` and `ns_name`. Required parameter for `newtag`.
+- `reftype` - which data use to lookup - tag values, metric static namespace element value or dynamic namespace element name; proper values are `tag`, `ns_name` and `ns_value` (only for ).
 - `refname` - metric `reftype`, which value will be searched in `refgroup` results. Required parameter.
-- `replace` -string to replace, can contain regexp capturing groups references. Required parameter for `replacetag`.
 - `ttl` - plugin cache time-to-live, in minutes. After cache was created it will not be updated till this time period expire. Optional parameter, default value - 180m (3h).
+- `cmd` - command to execute. Required parameter for `newtag`.
+- `arg[0..9]` - arguments to command. Optional parameters for `newtag`.
+- `refgroup` - named capturing group in `regex` that will be used to lookup values. Required parameter for `newtag`.
+- `replace` - string to replace, can contain regexp capturing groups references (like $1). Required parameter for `replace_value`.
+- `default_value` - string to replace, if regex has no matchings. Optional parameter for `replace_value`.
 
 Notice: Special characters in regular expressions needs to be escaped.
 

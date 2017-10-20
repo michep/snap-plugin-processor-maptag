@@ -7,7 +7,7 @@ import (
 
 const (
 	pluginName    = "maptag"
-	pluginVersion = 2
+	pluginVersion = 3
 )
 
 func main() {

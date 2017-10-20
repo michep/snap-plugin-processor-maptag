@@ -12,16 +12,16 @@ import (
 )
 
 type pluginConfig struct {
-	maptype     string
-	cmd         string
-	reftype     string
-	refname     string
-	refgroup    string
-	regex       string
-	replace     string
-	default_val string
-	args        []string
-	ttl         time.Duration
+	maptype       string
+	cmd           string
+	reftype       string
+	refname       string
+	refgroup      string
+	regex         string
+	replace       string
+	default_value string
+	args          []string
+	ttl           time.Duration
 }
 
 type Plugin struct {
@@ -59,11 +59,14 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 
 	// cycle all metrics
 	for _, mt := range mts {
+		idx := -1
 		switch p.config.maptype {
+
+		// we want to crete new tag
 		case "newtag":
 
 			p.getMapping()
-			idx := -1
+
 			switch p.config.reftype {
 
 			// looking for tag value
@@ -74,7 +77,7 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 					idx = getValueIndex(p.mapping[p.config.refgroup], m_tagval)
 				}
 
-				// looking for namespace element name
+			// looking for dynamic namespace element name
 			case "ns_name":
 				// cycle metric namespace elements
 				for _, nse := range mt.Namespace {
@@ -85,7 +88,7 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 					}
 				}
 
-				// looking for namespace element value
+			// looking for namespace element value
 			case "ns_value":
 				// Lookup of "refname" in metric namespace elements values
 				nsi := getValueIndex(mt.Namespace.Strings(), p.config.refname)
@@ -95,9 +98,9 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 					idx = getValueIndex(p.mapping[p.config.refgroup], mt.Namespace[nsi].Value)
 				}
 
-				// Incorrect reftype value
+			// Incorrect reftype value
 			default:
-				return nil, fmt.Errorf("Incorrect reftype value: %v", p.config.reftype)
+				return nil, fmt.Errorf("incorrect reftype value: %v", p.config.reftype)
 			}
 
 			// if found
@@ -111,18 +114,45 @@ func (p *Plugin) Process(mts []plugin.Metric, cfg plugin.Config) ([]plugin.Metri
 					}
 				}
 			}
-		case "replacetag":
-			if m_tagval, ok := mt.Tags[p.config.refname]; ok {
-				if i := p.re.FindStringIndex(m_tagval); i == nil && p.config.default_val != "" {
-					mt.Tags[p.config.refname] = p.config.default_val
-				} else {
-					new_tagval := p.re.ReplaceAllString(m_tagval, p.config.replace)
-					mt.Tags[p.config.refname] = new_tagval
+
+		// we want to replace ...
+		case "replace_value":
+
+			switch p.config.reftype {
+
+			// .. a tag value
+			case "tag":
+
+				if m_tagval, ok := mt.Tags[p.config.refname]; ok {
+					if i := p.re.FindStringIndex(m_tagval); i == nil && p.config.default_value != "" {
+						mt.Tags[p.config.refname] = p.config.default_value
+					} else {
+						new_tagval := p.re.ReplaceAllString(m_tagval, p.config.replace)
+						mt.Tags[p.config.refname] = new_tagval
+					}
 				}
+
+			// ... a dynamic namespace element value
+			case "ns_name":
+				// cycle metric namespace elements
+				for idx, nse := range mt.Namespace {
+					// if namespace element name is "refname"
+					if nse.Name == p.config.refname {
+						if i := p.re.FindStringIndex(nse.Value); i == nil && p.config.default_value != "" {
+							mt.Namespace[idx].Value = p.config.default_value
+						} else {
+							new_val := p.re.ReplaceAllString(nse.Value, p.config.replace)
+							mt.Namespace[idx].Value = new_val
+						}
+					}
+				}
+
+			default:
+				return nil, fmt.Errorf("incorrect reftype value: %v", p.config.reftype)
 			}
 
 		default:
-			return nil, fmt.Errorf("Incorrect maptype value: %v", p.config.maptype)
+			return nil, fmt.Errorf("incorrect maptype value: %v", p.config.maptype)
 		}
 	}
 
@@ -154,7 +184,7 @@ func (p *Plugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy.AddNewStringRule([]string{"*"}, "refgroup", false)
 	policy.AddNewStringRule([]string{"*"}, "regex", true)
 	policy.AddNewStringRule([]string{"*"}, "replace", false)
-	policy.AddNewStringRule([]string{"*"}, "default_val", false)
+	policy.AddNewStringRule([]string{"*"}, "default_value", false)
 	policy.AddNewIntRule([]string{"*"}, "ttl", false, plugin.SetDefaultInt(180))
 	return *policy, nil
 }
@@ -174,27 +204,27 @@ func getConfig(cfg plugin.Config) (*pluginConfig, error) {
 			errs = append(errs, fmt.Errorf(err.Error()+" cmd"))
 		}
 
-		mpc.reftype, err = cfg.GetString("reftype")
-		if err != nil {
-			errs = append(errs, fmt.Errorf(err.Error()+" reftype"))
-		}
-
 		mpc.refgroup, err = cfg.GetString("refgroup")
 		if err != nil {
 			errs = append(errs, fmt.Errorf(err.Error()+" refgroup"))
 		}
 	}
 
-	if mpc.maptype == "replacetag" {
+	if mpc.maptype == "replace_value" {
 		mpc.replace, err = cfg.GetString("replace")
 		if err != nil {
 			errs = append(errs, fmt.Errorf(err.Error()+" replace"))
 		}
 
-		mpc.default_val, err = cfg.GetString("default_val")
+		mpc.default_value, err = cfg.GetString("default_value")
 		if err != nil {
-			mpc.default_val = ""
+			mpc.default_value = ""
 		}
+	}
+
+	mpc.reftype, err = cfg.GetString("reftype")
+	if err != nil {
+		errs = append(errs, fmt.Errorf(err.Error()+" reftype"))
 	}
 
 	mpc.refname, err = cfg.GetString("refname")
