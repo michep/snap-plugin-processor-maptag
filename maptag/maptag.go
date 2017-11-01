@@ -272,12 +272,11 @@ func getConfigArgs(cfg plugin.Config) ([]string, error) {
 }
 
 func getCmdStdout(cmd string, args []string) (string, error) {
-	output_b, err := exec.Command(cmd, args...).Output()
-	output := string(output_b)
+	output, err := exec.Command(cmd, args...).Output()
 	if err != nil {
 		return "", err
 	}
-	return output, nil
+	return string(output), nil
 }
 
 func getValueIndex(arr []string, val string) int {
